@@ -20,18 +20,32 @@ def test_serial_vs_parallel():
         parallel = func(lon, lat, height, model, njobs=3)
         assert_allclose(serial, parallel, err_msg="Mismatch for {}".format(f))
 
-
+# Invoke with
+#
+# $ nosetests test/test_gravmag_tesseroid.py:test_numba_vs_python -v --nocapture
+#
+# to see timing output.
 def test_numba_vs_python():
     "gravmag.tesseroid numba and pure python implementations give same result"
     model = TesseroidMesh((0, 1, 0, 2, 1000, 0), (2, 2, 1))
     model.addprop('density', -200*np.ones(model.size))
     lon, lat, height = gridder.regular((0, 1, 0, 2), (20, 20), z=250e3)
-    for f in 'potential gx gy gz gxx gxy gxz gyy gyz gzz'.split():
-        func = getattr(tesseroid, f)
-        py = func(lon, lat, height, model, engine='numpy')
-        nb = func(lon, lat, height, model, engine='numba')
-        assert_allclose(nb, py, err_msg="Mismatch for {}".format(f))
-
+    from timeit import default_timer
+    def _testrun():
+        for f in 'potential gx gy gz gxx gxy gxz gyy gyz gzz'.split():
+            func = getattr(tesseroid, f)
+            py = func(lon, lat, height, model, engine='numpy')
+            nb = func(lon, lat, height, model, engine='numba')
+            assert_allclose(nb, py, err_msg="Mismatch for {}".format(f))
+    # Dry run
+    print "Dry run"
+    _testrun()
+    # Timing run
+    print "Timing run"
+    s = default_timer()
+    _testrun()
+    e = default_timer()
+    print "Timing run time:", e - s
 
 def test_fails_if_shape_mismatch():
     'gravmag.tesseroid fails if given computation points with different shapes'
